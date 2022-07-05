@@ -1,9 +1,10 @@
-﻿namespace MailContainerTest.Types
+﻿namespace MailContainerTest.Domain
 {
+    [Flags]
     public enum AllowedMailType
     {
         StandardLetter = 1 ,
         LargeLetter = 2,   
-        SmallParcel = 3
+        SmallParcel = 4
     }
 }

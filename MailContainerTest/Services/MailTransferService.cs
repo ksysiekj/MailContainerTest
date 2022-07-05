@@ -1,90 +1,48 @@
-﻿using MailContainerTest.Data;
-using MailContainerTest.Types;
-using System.Configuration;
+﻿using MailContainerTest.DataStore.Abstract;
+using MailContainerTest.Services.Abstract;
+using MailContainerTest.Services.Model;
+using MailContainerTest.Services.Validators.Abstract;
 
 namespace MailContainerTest.Services
 {
-    public class MailTransferService : IMailTransferService
+    public sealed class MailTransferService : IMailTransferService
     {
+        private readonly IMailTransferConfiguration _mailTransferConfiguration;
+        private readonly IMailContainerDataStoreProvider _mailContainerDataStoreProvider;
+        private readonly IMailTransferMailTypeValidatorProvider _mailTransferMailTypeValidatorProvider;
+
+        public MailTransferService(IMailTransferConfiguration mailTransferConfiguration, IMailContainerDataStoreProvider mailContainerDataStoreProvider, IMailTransferMailTypeValidatorProvider mailTransferValidator)
+        {
+            _mailTransferConfiguration = mailTransferConfiguration;
+            _mailContainerDataStoreProvider = mailContainerDataStoreProvider;
+            _mailTransferMailTypeValidatorProvider = mailTransferValidator;
+        }
+
         public MakeMailTransferResult MakeMailTransfer(MakeMailTransferRequest request)
         {
-            var dataStoreType = ConfigurationManager.AppSettings["DataStoreType"];
+            // TODO: do request validation - check if it makes sense
 
-            MailContainer mailContainer = null;
-
-            if (dataStoreType == "Backup")
-            {
-                var mailContainerDataStore = new BackupMailContainerDataStore();
-                mailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
-
-            } else
-            {
-                var mailContainerDataStore = new MailContainerDataStore();
-                mailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
-            }
+            var mailContainerDataStore = _mailContainerDataStoreProvider
+                .GetMailContainerDataStore(_mailTransferConfiguration.IsDataStoreTypeBackup);
 
             var result = new MakeMailTransferResult();
 
-            switch (request.MailType)
+            var mailContainer = mailContainerDataStore.GetMailContainer(request.SourceMailContainerNumber);
+
+            if (mailContainer == null)
             {
-                case MailType.StandardLetter:
-                    if (mailContainer == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!mailContainer.AllowedMailType.HasFlag(AllowedMailType.StandardLetter))
-                    {
-                        result.Success = false;
-                    }
-                    break;
-
-                case MailType.LargeLetter:
-                    if (mailContainer == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!mailContainer.AllowedMailType.HasFlag(AllowedMailType.LargeLetter))
-                    {
-                        result.Success = false;
-                    }
-                    else if (mailContainer.Capacity < request.NumberOfMailItems)
-                    {
-                        result.Success = false;
-                    }
-                    break;
-
-                case MailType.SmallParcel:
-                    if (mailContainer == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!mailContainer.AllowedMailType.HasFlag(AllowedMailType.SmallParcel))
-                    {
-                        result.Success = false;
-
-                    }
-                    else if (mailContainer.Status != MailContainerStatus.Operational)
-                    {
-                        result.Success = false;
-                    }
-                    break;
+                return result;
             }
+
+            result.Success = _mailTransferMailTypeValidatorProvider
+                .CreateValidator(request.MailType)
+                .Validate(request, mailContainer);
 
             if (result.Success)
             {
                 mailContainer.Capacity -= request.NumberOfMailItems;
 
-                if (dataStoreType == "Backup")
-                {
-                    var mailContainerDataStore = new BackupMailContainerDataStore();
-                    mailContainerDataStore.UpdateMailContainer(mailContainer);
-
-                }
-                else
-                {
-                    var mailContainerDataStore = new MailContainerDataStore();
-                    mailContainerDataStore.UpdateMailContainer(mailContainer);
-                }
+                mailContainerDataStore.UpdateMailContainer(mailContainer);
             }
 
             return result;
