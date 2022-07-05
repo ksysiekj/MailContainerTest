@@ -11,7 +11,9 @@ namespace MailContainerTest.Services
         private readonly IMailContainerDataStoreProvider _mailContainerDataStoreProvider;
         private readonly IMailTransferMailTypeValidatorProvider _mailTransferMailTypeValidatorProvider;
 
-        public MailTransferService(IMailTransferConfiguration mailTransferConfiguration, IMailContainerDataStoreProvider mailContainerDataStoreProvider, IMailTransferMailTypeValidatorProvider mailTransferValidator)
+        public MailTransferService(IMailTransferConfiguration mailTransferConfiguration,
+            IMailContainerDataStoreProvider mailContainerDataStoreProvider,
+            IMailTransferMailTypeValidatorProvider mailTransferValidator)
         {
             _mailTransferConfiguration = mailTransferConfiguration;
             _mailContainerDataStoreProvider = mailContainerDataStoreProvider;
